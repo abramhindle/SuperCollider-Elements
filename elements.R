@@ -14,7 +14,7 @@
 # limitations under the License.
 # 
 
-elms <- c("Fe","Rb","H","Li","He","Be","B","C");
+elms <- c("Fe","Rb","H","Li","He","Be","B","C","O","N","S","Cl");
 
 sapply(elms, function(elm) {
                                         #v <- read.csv("~/Documents/H.csv",header=F,sep="|")
