@@ -130,7 +130,7 @@ SynthDef(\hydro4, {
 };
 
 
-~elems = ["H","Rb","Fe","He","Li","Be","B","C","O","N","Cl","S"];
+~elems = ["H","Rb","Fe","He","Li","Be","B","C","O","N"];
 ~elem = Dictionary.new();
 ~elems.do {|elm| ~elem[elm] = ~csvtoinst.(elm++".csv")};
 
@@ -240,105 +240,93 @@ SynthDef(\triramp,{
 			freq:(20.rand + 3)*40.0);
 		(0.25.rand + 0.25)*waitTime.wait;
 	}
+}).play;
+
+
+
+
+~newH = Routine({
+	var mult=20;
+	((4*880)/mult).do {|x|
+		~elmAtkDecay.("C",
+			attack:40.0.rand, 
+			decay:40.0.rand, 
+			freq: (1.0 + (mult*x)));
+		4.0.rand.wait;
+	};
+}).play;
+~hrout = Routine({
+	arg inval="H";
+	var attackdur=20,elm,decaydur=20,b,syn = "H";
+	elm = inval;
+	~syn = ~playAnElm.(elm,n: 1000);
+	s.sync;
+	~syn.set(\freq,440.0);
+	0.1.wait;
+	~syn.set(\amp,0.0);
+	0.1.wait;
+	b = Bus.control(s,1);
+	b.set(0.0);
+	~syn.map(\amp,b);
+	Synth(\triramp,[out: b, attackdur: attackdur, decaydur: decaydur]);
+	//{  }.play;
+	//{ Out.kr(b,Line.kr(0, end: 0.5, dur: attackdur, doneAction: 2)) }.play;
+	//attackdur.wait;
+	//{ Out.kr(b,Line.kr(start: 0.5, end: 0.0, dur: decaydur, doneAction: 2)) }.play;
+	//decaydur.wait;
+	(attackdur+decaydur+0.1).wait;
+	b.set(0.0);
+	0.1.wait;
+	~syn.free;
 });
 
-// 6C10H15O7 -> C50H10O 10CH2O
-// CH2O + O2 -> H2O CO2 CO C N2
+	~elemsyn[elm].map(\amp,b);
+	{ Out.kr(b,Line.kr(0, end: 0.5, dur: 6, doneAction: 2)) }.play;
+}).play;
 
-// carbon monoxide 	80-370
-// methane 	14-25
-// VOCs* (C2-C7) 	7-27
-// aldehydes 	0.6-5.4
-// substituted furans 	0.15-1.7
-// benzene 	0.6-4.0
-// alkyl benzenes 	1-6
-// acetic acid 	1.8-2.4
-// formic acid 	0.06-0.08
-// nitrogen oxides 	0.2-0.9
-// sulfur dioxide 	0.16-0.24
-// methyl chloride 	0.01-0.04
-// napthalene 	0.24-1.6
-// substituted napthalenes 	0.3-2.1
-// oxygenated monoaromatics 	1-7
-// total particle mass 	7-30
-// particulate organic carbon 	2-20
-// oxygenated PAHs 	0.15-1
-// Individual PAHs 	10-5-10-2
+~elems.do(~playelm);
+// wait a little
+~elemsyn.keys.do {|elm| ~elemsyn[elm].set(\amp,0.2.linrand)};
+~elemsyn.keys.do {|elm| ~elemsyn[elm].set(\freq,1000.linrand)};
 
-~wood = [
-	["C","H","O"],
-	["H","H","O"],
-	["C","H","H","O"],
-	["C","O"],
-	["C","O","O"],
-	["C"],
-	["N","N"],
-	["C","H"],
-	["C","C","H"],
-	["C","C","H","H","H"],
-	["C","H","H","H","H"], //methane
-	["H","C","O"], //formaldehyde
-	["H","C","O","O"], //formaldehyde
-	["H","C","O","O","H"], //formic acid
-	["C","C","C","C","C","C","H","H","H","H","H"], //benzene full
-	["C","C","C","H"], //1 part benzene
-	["C","C","H","O"], //1 part acetic acid C2H4O2
-	["O","H"],
-	["H","C","O","O","H"], //formic acid
-	["C","H","H","H","Cl"],
-	["S","O"],
-	["S","O","O"],
-	["H","Cl"],
-	["C","H","Cl"]
-];
-
-~woodplaydfl = {
-	var waitTime = 60.0 + (18.0.rand),
-	portion = 0.1 + (0.8.rand),
-	freq = (10.rand + 3) * 40.0,
-	l = ~wood.choose.scramble;
-	[waitTime, freq, portion, l].postln;
-	~caffplay.(l,
-		attack:waitTime*portion, 
-		decay:(1.1*waitTime)*(1.0-portion),
-		freq:(20.rand + 3)*40.0);
-};
-~woodplay = {
-	|waitTime = -1.0, portion = -1.0, freq = -1.0, l= -1.0|
-	waitTime = if(waitTime == -1.0,{60.0 + (18.0.rand)},{waitTime});
-	portion = if(portion == -1.0,{0.1 + (0.8.rand)},{portion});
-	freq = if(freq == -1.0,{(10.rand + 3) * 40.0},{freq});
-	l = if(l == -1.0,{~wood.choose.scramble},{l.scramble});
-	[waitTime, freq, portion, l].postln;
-	~caffplay.(l,
-		attack:waitTime*portion, 
-		decay:(1.1*waitTime)*(1.0-portion),
-		freq:(20.rand + 3)*40.0);
-};
-
-~woodplaydfl.()
-~woodplay.(freq: 80, l: ~wood.choose)
-// this is too loud
-// was 0.9
-~longwood = ~woodplay.(waitTime: 60*20, portion: 0.1, freq: 440, l: ["H","O","O"])
-~woodplay.(waitTime: 10+10.linrand, freq: 40+2000.rand, l: ~wood.choose)
-~woodplay.(waitTime: 10+10.linrand, freq: 40+2000.rand, l: ["H","Cl"])
-~woodplay.(l: ~wood[4])
-~woodplay.(waitTime: 120+60.linrand, freq: (1+10.linrand) * 120.0, l: ["S"].scramble)
-
-{
-	var l = ~wood.choose;
-	5.do{|x| 
-		~woodplay.(waitTime: 120+60.linrand, freq: (x+1) * 40.0, l: l)
-	}
-}.()
+~elemsyn["Fe"].set(\freq,2000)
 
 
+
+
+/*
+	~playelm.("C");
+	~elemsyn["C"].set(\amp,0.1);
+	~elemsyn["C"].set(\freq,440);
+	//~elemsyn["C"].map(\amp, {LFSaw.kr(1)}.)
+
+
+*/
+
+/* 
+
+~c2 = ~mkelement.(~elem["C"],n:n).play(s,[\amp,0.0]);
+~c2.set(\amp,0.1);
+~c2.set(\freq,880.0);
+
+~c3 = ~mkelement.(~elem["C"],n:n).play(s,[\amp,0.0,\freq,220]);
+~c3.set(\amp,0.3);
+~c3.set(\freq,220.0);
+
+*/
 
 ~free = {|synthn|
 	s.sendBundle(nil,Synth.basicNew("default",s,synthn).freeMsg)
 };
 
+// ~free.(1003)
+
+/*
+	~h3 = ~mkelement.(~elem["H"],n:n).play(s,[\amp,0.0,\freq,220]);
+	~h3.set(\amp,0.3);
+	~h3.set(\freq,880.0);
+	~h3.asString
+*/
 
 ~mkslider = {
 	|synth,params,name=""|
@@ -354,9 +342,7 @@ SynthDef(\triramp,{
 		cv.layout.add(ss,0,\topleft);
 	};
 };
-
-~mkslider.(~longwood,[[\freq,20,2000],[\amp,0,1.0]], name: "H2O");
-
+//~mkslider.(~h3,[[\freq,20,2000],[\amp,0,1.0]])
 
 ~elemsyn.keys.do {|elm| ~mkslider.(~elemsyn[elm],[[\freq,20,2000],[\amp,0,1.0]], name: elm)}
 
