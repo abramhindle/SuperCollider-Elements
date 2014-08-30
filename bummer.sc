@@ -14,6 +14,16 @@
 // limitations under the License.
 // 
 
+// bummer ideas:
+//  - palette of chemicals
+//  - global reverb or amp
+//    - 19 sustain then 1 minute decay
+//    - get rid of that long one?
+//    - or run a routine of 5 minutes of C, H, O, N
+//  - print the chemical somehow
+//  - practice again
+//  - try on laptop with projector
+
 //s.quit;
 s.boot;
 s.options.numBuffers = 16000;
@@ -156,10 +166,10 @@ SynthDef(\triramp,{
 
 //Env.new([0,0.5, 0], [1, 2],'linear').test.plot;
 ~elmAtkDecay = {
-	|elm="H",attack=20.0,decay=20.0,freq=440.0|	
+	|elm="H",attack=20.0,decay=20.0,freq=440.0,n=100|	
 	Routine({
 		var attackdur=attack,decaydur=decay,b,syn;
-		syn = ~playAnElm.(elm,n: 100);
+		syn = ~playAnElm.(elm,n: n);
 		s.sync;
 		syn.set(\amp,0.0);
 		s.sync;
@@ -219,7 +229,7 @@ SynthDef(\triramp,{
 		~elmAtkDecay.(elm,
 			attack:attack, 
 			decay:decay,
-			freq: ffreq);
+			freq: ffreq, n: 50);
 	};
 };
 
@@ -323,16 +333,19 @@ SynthDef(\triramp,{
 ~longwood = ~woodplay.(waitTime: 60*20, portion: 0.1, freq: 440, l: ["H","O","O"])
 ~woodplay.(waitTime: 10+10.linrand, freq: 40+2000.rand, l: ~wood.choose)
 ~woodplay.(waitTime: 10+10.linrand, freq: 40+2000.rand, l: ["H","Cl"])
-~woodplay.(l: ~wood[4])
+~woodplay.(freq: 88000, l: ["Fe"])
 ~woodplay.(waitTime: 120+60.linrand, freq: (1+10.linrand) * 120.0, l: ["S"].scramble)
 
 {
 	var l = ~wood.choose;
 	5.do{|x| 
-		~woodplay.(waitTime: 120+60.linrand, freq: (x+1) * 40.0, l: l)
+		~woodplay.(waitTime: 120+60.linrand, freq: (x+1) * 1140.0, l: l)
 	}
 }.()
 
+5.do {
+~woodplay.(waitTime: 5, portion: 1.0.rand , freq: 880*(1+10.rand), l: [["Fe","S","Cl","H","C"].choose])
+}
 
 
 ~free = {|synthn|
