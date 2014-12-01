@@ -333,7 +333,7 @@ SynthDef(\triramp,{
 ~longwood = ~woodplay.(waitTime: 60*20, portion: 0.1, freq: 440, l: ["H","O","O"])
 ~woodplay.(waitTime: 10+10.linrand, freq: 40+2000.rand, l: ~wood.choose)
 ~woodplay.(waitTime: 10+10.linrand, freq: 40+2000.rand, l: ["H","Cl"])
-~woodplay.(freq: 88000, l: ["Fe"])
+~woodplay.(freq: 11000, l: ["Fe"])
 ~woodplay.(waitTime: 120+60.linrand, freq: (1+10.linrand) * 120.0, l: ["S"].scramble)
 
 {
