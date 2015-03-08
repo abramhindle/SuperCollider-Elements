@@ -25,9 +25,9 @@
 //  - try on laptop with projector
 
 //s.quit;
-s.boot;
 s.options.numBuffers = 16000;
 s.options.memSize = 655360;
+s.boot;
 s.freqscope;
 s.plotTree;
 s.scope;
@@ -150,9 +150,32 @@ n=200;
 ~elemsyn = Dictionary.new();
 ~playelm = {|elm,amp=0.0,freq=440.0| ~elemsyn[elm] = ~mkelement.(~elem[elm],n:n).play(s,[\amp,amp,\freq,freq]) };
 
+
 ~playelm = {|elm,amp=0.0,freq=440.0| ~elemsyn[elm] = ~mkelement.(~elem[elm],n:n).play(s,[\amp,amp,\freq,freq]) };
 
-~playAnElm = {|elm,amp=0.0,freq=440.0,n=50| ~mkelement.(~elem[elm],n:n).play(s,[\amp,amp,\freq,freq]) };
+// args is new
+~playAnElm = {|elm,amp=0.0,freq=440.0,n=50| ~mkelement.(~elem[elm],n:n).play(s,args:[\amp,amp,\freq,freq]) };
+
+
+~playAnElm = {|elm,fadein=0.2,amp=0.0,freq=440.0,n=50| ~mkelement.(~elem[elm],n:n).play(s,fadeTime:fadein,args:[\amp,amp,\freq,freq]) };
+
+/*
+x = ~playAnElm.("H",fadein:10,amp:1.0,freq:440.0,n:150)
+x.release
+
+x = ~playAnElm.("H",1.0,44440.0,n:150)
+x.set(\amp,0.1)
+x.set(\freq,4440.0)
+x.get(\freq,{|x| x.postln})
+x.get(\amp,{|x| x.postln})
+h = ~mkelement.(~elem["H"],n:150)
+y = h.play(s,args:[\amp,1.0,\freq,440])
+y= h.(amp:1.0, freq: 440.0)
+y.get(\freq,{|x| x.postln})
+y.get(\amp,{|x| x.postln})
+h
+y.defName
+*/
 
 SynthDef(\triramp,{
 	|out=0,attackdur=20,decaydur=20|
@@ -336,6 +359,9 @@ SynthDef(\triramp,{
 ~woodplay.(freq: 11000, l: ["Fe"])
 ~woodplay.(waitTime: 120+60.linrand, freq: (1+10.linrand) * 120.0, l: ["S"].scramble)
 
+~woodplay.(waitTime: 10+10.linrand, freq: 10000.rand, l: ["H","Cl"])
+
+
 {
 	var l = ~wood.choose;
 	5.do{|x| 
@@ -367,6 +393,9 @@ SynthDef(\triramp,{
 		cv.layout.add(ss,0,\topleft);
 	};
 };
+
+~longwood.set(\freq,20000)
+~longwood
 
 ~mkslider.(~longwood,[[\freq,20,2000],[\amp,0,1.0]], name: "H2O");
 
