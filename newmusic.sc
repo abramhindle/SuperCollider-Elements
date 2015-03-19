@@ -355,30 +355,38 @@ SynthDef(\triramp,{
 ~woodplay.(freq: 80, l: ~wood.choose)
 // this is too loud
 // was 0.9
-~longwood = ~woodplay.(waitTime: 60*20, portion: 0.1, freq: 440, l: ["H","O","O"])
+~longwood = ~woodplay.(waitTime: 60*17, portion: 0.1, freq: 110, l: ["H","O","O"])
+~longwood = ~woodplay.(waitTime: 60*17, portion: 0.1, freq: 440, l: ["H","O","O"])
 ~longwood = ~woodplay.(waitTime: 20, portion: 0.1, freq: 440, l: ["H","O","O"])
 ~longwood = ~woodplay.(waitTime: 20, portion: 0.1, freq: -1.0, l: ["H","O","O"])
 
-
 ~woodplay.(waitTime: 10+10.linrand, freq: 4000.rand+20, l: ~wood.choose)
-~woodplay.(waitTime: 10+40.linrand, freq: 40+2000.rand, l: ["H","Cl"])
+~woodplay.(waitTime: 10+40.linrand, freq: 40+2000.rand, l: ~wood.choose
+~woodplay.(waitTime: 10+40.linrand, freq: 40+200.linrand, l: ~wood.choose)
+~woodplay.(waitTime: 10+40.linrand, freq: 40+200.linrand, l: ["H","Cl"])
 ~woodplay.(freq: 440, l: ["H","Fe","H","Fe"])
 ~woodplay.(freq: 20, l: ["H","Fe","H","Fe"])
 
 ~woodplay.(waitTime: 120+60.linrand, freq: (1+10.linrand) * 120.0, l: ~wood.choose.scramble)
 
 ~woodplay.(waitTime: 10+10.linrand, freq: 10000.rand, l: ["H","Cl"])
+~woodplay.(waitTime: 10+120.linrand, freq: 1000.rand, l: ["O","O","Fe","Fe","Fe"])
+~woodplay.(waitTime: 10+10.linrand, freq: 10000.rand, l: ~wood.choose.scramble)
 
 
 {
 	var l = ~wood.choose;
 	5.do{|x| 
-		~woodplay.(waitTime: 120+60.linrand, freq: (x+1) * 1140.0, l: l)
+		~woodplay.(waitTime: 120+60.linrand, freq: (x+1) * 114.0, l: l)
 	}
 }.()
 
 5.do {
-~woodplay.(waitTime: 5, portion: 1.0.rand , freq: 880*(1+10.rand), l: [["Fe","S","Cl","H","C"].choose])
+~woodplay.(waitTime: 30.rand, portion: 1.0.rand , freq: 220*(1+10.rand), l: [["Fe","S","Cl","H","C"].choose])
+}
+
+5.do {
+~woodplay.(waitTime: 600.rand, portion: 1.0.rand , freq: 220*(1+10.rand), l: [["Fe","S","Cl","H","C"].choose])
 }
 
 
@@ -386,7 +394,12 @@ SynthDef(\triramp,{
 	s.sendBundle(nil,Synth.basicNew("default",s,synthn).freeMsg)
 };
 
-
+x = s.defaultGroup
+x[0]
+v = x.dumpTree 
+v
+y = Synth.basicNew("",s, 1281)
+y.release(3)
 ~mkslider = {
 	|synth,params,name=""|
 	var window,cv;
@@ -452,7 +465,7 @@ SynthDef(\cnoise,
 ~freqs["H"].set(440);
 ~cnoise = Synth(\cnoise,[\out,~freqs["Fe"]]);
 ~cnoiseh = Synth(\cnoise,[\out,~freqs["H"]]);
-
+s.queryAllNodes();
 ~elemsyn["Fe"].map(\freq,~freqs["Fe"])
 ~elemsyn["H"].map(\freq,~freqs["H"])
 
@@ -469,3 +482,84 @@ SynthDef(\cnoise,
 ~free.(1009)
 ~free.(1008)
 ~freqnoise["C"].set(\base,800)
+
+~cool = ();
+
+(
+		var collectChildren, levels, countSize;
+		var resp, done = false;
+        var updater, updateFunc;
+        var interval = 3.0;
+
+		resp = OSCFunc({ arg msg;
+			var finalEvent;
+			var i = 2, j, controls, printControls = false, dumpFunc;
+			if(msg[1] != 0, {printControls = true});
+			dumpFunc = {|numChildren|
+				var event, children;
+				event = ().group;
+				event.id = msg[i];
+				event.instrument = nil; // need to know it's a group
+				i = i + 2;
+				children = Array.fill(numChildren, {
+					var id, child;
+					// i = id
+					// i + 1 = numChildren
+					// i + 2 = def (if synth)
+					id = msg[i];
+					if(msg[i+1] >=0, {
+						child = dumpFunc.value(msg[i+1]);
+					}, {
+						j = 4;
+						child = ().synth.instrument_(msg[i+2]);
+						if(printControls, {
+							controls = ();
+							msg[i+3].do({
+								controls[msg[i + j]] = msg[i + j + 1];
+								j = j + 2;
+							});
+							child.controls = controls;
+							i = i + 4 + (2 * controls.size);
+						}, {i = i + 3 });
+					});
+					child.id = id;
+				});
+				event.children = children;
+				event;
+			};
+			finalEvent = dumpFunc.value(msg[3]);
+			done = true;
+			collectChildren = {|group|
+				group.children.collect({|child|
+					if(child.children.notNil,{
+						child.id -> collectChildren.value(child);
+					}, {
+						child.id -> child.instrument;
+					});
+				});
+			};
+			levels = collectChildren.value(finalEvent);
+			countSize = {|array|
+				var size = 0;
+				array.do({|elem|
+					if(elem.value.isArray, { size = size + countSize.value(elem.value) + 2}, {size = size + 1;});
+				});
+				size
+			};
+		}, '/g_queryTree.reply', s.addr).fix;
+
+		updateFunc = {
+			fork {
+				loop {
+					s.sendMsg("/g_queryTree", 0, 0);
+					interval.wait;
+					~cool = levels[0];
+					levels[0].(1).postln;
+
+				}
+			}
+		};
+		updater = updateFunc.value;
+)
+~cool.(1)
+~cool.(1).collect{|x| Synth.basicNew(x.value,s,x.key).release(4); }
