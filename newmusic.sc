@@ -156,7 +156,7 @@ n=200;
 
 ~playelm = {|elm,amp=0.0,freq=440.0,attack=20.0,decay=20.0,n=100| ~mkelement.(~elem[elm],n:n).play(s,args:[\amp,amp,\freq,freq,\attack,attack,\decay,decay]) };
 //~playelm.("H",amp: 0.2, freq: 440)
-~playelm.("H",amp: 0.2, freq: 1440, attack:1.0, decay: 1.0)
+//~playelm.("H",amp: 0.2, freq: 1440, attack:1.0, decay: 1.0)
 
 
 /*
@@ -212,7 +212,131 @@ SynthDef(\triramp,{
 		b.free;
 	}).play;
 };
-// ~elmAtkDecay.("H");
+
+
+~free = {|synthn|
+	s.sendBundle(nil,Synth.basicNew("default",s,synthn).freeMsg)
+};
+
+
+// GUI stuff
+
+~cool = ();
+~buildWindow = {
+        var window, cv, updateBtn, synthids, updateButtons, buttons; 
+	    var n = 20;
+        window = Window("", Rect(200, 200, 200, 400), false).front;
+        cv = View(window);
+        cv.minSize_(Size(199,399));
+        cv.layout_(VLayout());	
+        updateBtn = {
+           |but, string| but.states = [[string.asString, Color.black, Color.red]];
+           but.refresh;
+        };
+        buttons = n.collect {|i| 
+			var btn = Button(cv,Rect(50, 50, 50, 30));
+			btn.action_( { Synth.basicNew("",s,synthids[i]).release(7.0); } );
+			updateBtn.value(btn,""+i)
+		};
+        synthids = n.collect { 0 };
+        updateButtons = {
+			n.do {|i| 
+				if(i < ~cool.size, {
+					updateBtn.value( buttons[i], ~cool.[i].value);
+					synthids[i] = ~cool.[i].key
+				}, {
+					updateBtn.value( buttons[i], "");
+					synthids[i] = 0
+				});
+			};
+		};
+	    updateButtons
+};
+~updater = ~buildWindow.();
+~querySynths = {
+	|interval=1.0|
+		var collectChildren, levels, countSize;
+		var resp, done = false;
+        var updater, updateFunc;
+        var update;
+		resp = OSCFunc({ arg msg;
+			var finalEvent;
+			var i = 2, j, controls, printControls = false, dumpFunc;
+			if(msg[1] != 0, {printControls = true});
+			dumpFunc = {|numChildren|
+				var event, children;
+				event = ().group;
+				event.id = msg[i];
+				event.instrument = nil; // need to know it's a group
+				i = i + 2;
+				children = Array.fill(numChildren, {
+					var id, child;
+					// i = id
+					// i + 1 = numChildren
+					// i + 2 = def (if synth)
+					id = msg[i];
+					if(msg[i+1] >=0, {
+						child = dumpFunc.value(msg[i+1]);
+					}, {
+						j = 4;
+						child = ().synth.instrument_(msg[i+2]);
+						if(printControls, {
+							controls = ();
+							msg[i+3].do({
+								controls[msg[i + j]] = msg[i + j + 1];
+								j = j + 2;
+							});
+							child.controls = controls;
+							i = i + 4 + (2 * controls.size);
+						}, {i = i + 3 });
+					});
+					child.id = id;
+				});
+				event.children = children;
+				event;
+			};
+			finalEvent = dumpFunc.value(msg[3]);
+			done = true;
+			collectChildren = {|group|
+				group.children.collect({|child|
+					if(child.children.notNil,{
+						child.id -> collectChildren.value(child);
+					}, {
+						child.id -> child.instrument;
+					});
+				});
+			};
+			levels = collectChildren.value(finalEvent);
+			countSize = {|array|
+				var size = 0;
+				array.do({|elem|
+					if(elem.value.isArray, { size = size + countSize.value(elem.value) + 2}, {size = size + 1;});
+				});
+				size
+			};
+		}, '/g_queryTree.reply', s.addr).fix;        
+		updateFunc = {
+			fork {
+				loop {
+					s.sendMsg("/g_queryTree", 0, 0);
+					interval.wait;
+					~cool = levels[0].(1);
+					AppClock.sched(0.0,{
+						~updater.();
+						nil;
+					});
+					
+				}
+			}
+		};
+		updater = updateFunc.value;
+};
+~querySynths.();
+~releaseall = {|t=10|
+	~cool.collect{|x| Synth.basicNew("",s,x.key).release(t); }
+};
+
+
 // 
 // ~elmAtkDecay.("O");
 // 
@@ -261,7 +385,7 @@ SynthDef(\triramp,{
 			freq: ffreq, n: 50);
 	};
 };
-~elmplayer.(elm:"H",attack:10,decay:10,freq:1000,n:50)
+//~elmplayer.(elm:"H",attack:10,decay:10,freq:1000,n:50)
 //~caffplay.(["H","H","H"],freq:1100,attack:5,decay:5)
 
 //~caffplay.(~caffeine[0],attack:5,decay:5);
@@ -363,8 +487,9 @@ SynthDef(\triramp,{
 
 
 
+
 ~woodplaydfl.()
-~woodplay.(freq: 80, l: ~wood.choose)
+~woodplay.(freq: 800.linrand+80, l: ~wood.choose)
 // this is too loud
 // was 0.9
 ~longwood = ~woodplay.(waitTime: 60*17, portion: 0.1, freq: 110, l: ["H","O","O"])
@@ -386,7 +511,7 @@ SynthDef(\triramp,{
 
 ~woodplay.(waitTime: 10+10.linrand, freq: 10000.rand, l: ["H","Cl"])
 ~woodplay.(waitTime: 10+120.linrand, freq: 1000.rand, l: ["O","O","Fe","Fe","Fe"])
-~woodplay.(waitTime: 10+10.linrand, freq: 10000.rand, l: ~wood.choose.scramble)
+~woodplay.(waitTime: 10+20.linrand, freq: 10000.rand, l: ~wood.choose.scramble)
 
 ~woodplay.(freq: 1680, l: ~wood.choose)
 
@@ -399,7 +524,7 @@ SynthDef(\triramp,{
 }.()
 
 5.do {
-~woodplay.(waitTime: 30.rand, portion: 1.0.rand , freq: 220*(1+10.rand), l: [["Fe","S","Cl","H","C"].choose])
+~woodplay.(waitTime: 30.rand, portion: 1.0.rand , freq: 220*(10.rand+1), l: [["Fe","S","Cl","H","C"].choose])
 }
 
 5.do {
@@ -407,121 +532,7 @@ SynthDef(\triramp,{
 }
 
 
-~free = {|synthn|
-	s.sendBundle(nil,Synth.basicNew("default",s,synthn).freeMsg)
-};
+	// repeatedly apply
+~woodplay.(waitTime: 10+20.linrand, portion: 0.9, freq: 299*(15.linrand+1), l: ["C","O","O"])
 
-
-
-
-~cool = ();
-~buildWindow = {
-        var window, cv, updateBtn, synthids, updateButtons, buttons; 
-	    var n = 20;
-        window = Window("", Rect(200, 200, 200, 400), false).front;
-        cv = View(window);
-        cv.minSize_(Size(199,399));
-        cv.layout_(VLayout());	
-        updateBtn = {
-           |but, string| but.states = [[string.asString, Color.black, Color.red]];
-           but.refresh;
-        };
-        buttons = n.collect {|i| 
-			var btn = Button(cv,Rect(50, 50, 50, 30));
-			btn.action_( { Synth.basicNew("",s,synthids[i]).release(7.0); } );
-			updateBtn.value(btn,""+i)
-		};
-        synthids = n.collect { 0 };
-        updateButtons = {
-			n.do {|i| 
-				if(i < ~cool.size, {
-					updateBtn.value( buttons[i], ~cool.[i].value);
-					synthids[i] = ~cool.[i].key
-				}, {
-					updateBtn.value( buttons[i], "");
-					synthids[i] = 0
-				});
-			};
-		};
-	    updateButtons
-};
-~updater = ~buildWindow.();
-~querySynths = {
-		var collectChildren, levels, countSize;
-		var resp, done = false;
-        var updater, updateFunc;
-        var interval = 3.0;
-        var update;
-		resp = OSCFunc({ arg msg;
-			var finalEvent;
-			var i = 2, j, controls, printControls = false, dumpFunc;
-			if(msg[1] != 0, {printControls = true});
-			dumpFunc = {|numChildren|
-				var event, children;
-				event = ().group;
-				event.id = msg[i];
-				event.instrument = nil; // need to know it's a group
-				i = i + 2;
-				children = Array.fill(numChildren, {
-					var id, child;
-					// i = id
-					// i + 1 = numChildren
-					// i + 2 = def (if synth)
-					id = msg[i];
-					if(msg[i+1] >=0, {
-						child = dumpFunc.value(msg[i+1]);
-					}, {
-						j = 4;
-						child = ().synth.instrument_(msg[i+2]);
-						if(printControls, {
-							controls = ();
-							msg[i+3].do({
-								controls[msg[i + j]] = msg[i + j + 1];
-								j = j + 2;
-							});
-							child.controls = controls;
-							i = i + 4 + (2 * controls.size);
-						}, {i = i + 3 });
-					});
-					child.id = id;
-				});
-				event.children = children;
-				event;
-			};
-			finalEvent = dumpFunc.value(msg[3]);
-			done = true;
-			collectChildren = {|group|
-				group.children.collect({|child|
-					if(child.children.notNil,{
-						child.id -> collectChildren.value(child);
-					}, {
-						child.id -> child.instrument;
-					});
-				});
-			};
-			levels = collectChildren.value(finalEvent);
-			countSize = {|array|
-				var size = 0;
-				array.do({|elem|
-					if(elem.value.isArray, { size = size + countSize.value(elem.value) + 2}, {size = size + 1;});
-				});
-				size
-			};
-		}, '/g_queryTree.reply', s.addr).fix;        
-		updateFunc = {
-			fork {
-				loop {
-					s.sendMsg("/g_queryTree", 0, 0);
-					interval.wait;
-					~cool = levels[0].(1);
-					AppClock.sched(0.0,{
-						~updater.();
-						nil;
-					});
-					
-				}
-			}
-		};
-		updater = updateFunc.value;
-};
-~querySynths.();
+~releaseall.(40)
