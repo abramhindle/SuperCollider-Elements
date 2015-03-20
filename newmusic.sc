@@ -484,13 +484,42 @@ s.queryAllNodes();
 ~freqnoise["C"].set(\base,800)
 
 ~cool = ();
-
+~buildWindow = {
+        var window, cv, updateBtn, synthids, updateButtons, buttons; 
+        window = Window("", Rect(200, 200, 200, 200), false).front;
+        cv = View(window);
+        cv.minSize_(Size(199,199));
+        cv.layout_(VLayout());	
+        updateBtn = {
+           |but, string| but.states = [[string.asString, Color.black, Color.red]];
+           but.refresh;
+        };
+        buttons = 10.collect {|i| 
+			var btn = Button(cv,Rect(50, 50, 50, 10));
+			btn.action_( { Synth.basicNew("",s,synthids[i]).release(7.0); } );
+			updateBtn.value(btn,""+i)
+		};
+        synthids = 10.collect { 0 };
+        updateButtons = {
+			10.do {|i| 
+				if(i < ~cool.size, {
+					updateBtn.value( buttons[i], ~cool.[i].value);
+					synthids[i] = ~cool.[i].key
+				}, {
+					updateBtn.value( buttons[i], "");
+					synthids[i] = 0
+				});
+			};
+		};
+	    updateButtons
+};
+~updater = ~buildWindow.();
 (
 		var collectChildren, levels, countSize;
 		var resp, done = false;
         var updater, updateFunc;
         var interval = 3.0;
-
+        var update;
 		resp = OSCFunc({ arg msg;
 			var finalEvent;
 			var i = 2, j, controls, printControls = false, dumpFunc;
@@ -546,16 +575,18 @@ s.queryAllNodes();
 				});
 				size
 			};
-		}, '/g_queryTree.reply', s.addr).fix;
-
+		}, '/g_queryTree.reply', s.addr).fix;        
 		updateFunc = {
 			fork {
 				loop {
 					s.sendMsg("/g_queryTree", 0, 0);
 					interval.wait;
-					~cool = levels[0];
-					levels[0].(1).postln;
-
+					~cool = levels[0].(1);
+					AppClock.sched(0.0,{
+						~updater.();
+						nil;
+					});
+					
 				}
 			}
 		};
@@ -563,3 +594,8 @@ s.queryAllNodes();
 )
 ~cool.(1)
 ~cool.(1).collect{|x| Synth.basicNew(x.value,s,x.key).release(4); }
+
+~updater.()
+~cool = [(1->"a"),(2->"b"),(3->"c")];
+~cool.[0]
+10.collect {|x| x}
