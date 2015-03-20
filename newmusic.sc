@@ -357,6 +357,12 @@ SynthDef(\triramp,{
 		freq:freq);
 };
 
+
+
+
+
+
+
 ~woodplaydfl.()
 ~woodplay.(freq: 80, l: ~wood.choose)
 // this is too loud
@@ -365,6 +371,9 @@ SynthDef(\triramp,{
 ~longwood = ~woodplay.(waitTime: 60*17, portion: 0.1, freq: 440, l: ["H","O","O"])
 ~longwood = ~woodplay.(waitTime: 20, portion: 0.1, freq: 440, l: ["H","O","O"])
 ~longwood = ~woodplay.(waitTime: 20, portion: 0.1, freq: -1.0, l: ["H","O","O"])
+
+~longwood = ~woodplay.(waitTime: 120, portion: 0.1, freq: 2**16.linrand, l: ~wood.choose.scramble)
+
 
 ~woodplay.(waitTime: 10+10.linrand, freq: 4000.rand+20, l: ~wood.choose)
 ~woodplay.(waitTime: 10+40.linrand, freq: 40+2000.rand, l: ~wood.choose
@@ -378,6 +387,8 @@ SynthDef(\triramp,{
 ~woodplay.(waitTime: 10+10.linrand, freq: 10000.rand, l: ["H","Cl"])
 ~woodplay.(waitTime: 10+120.linrand, freq: 1000.rand, l: ["O","O","Fe","Fe","Fe"])
 ~woodplay.(waitTime: 10+10.linrand, freq: 10000.rand, l: ~wood.choose.scramble)
+
+~woodplay.(freq: 1680, l: ~wood.choose)
 
 
 {
