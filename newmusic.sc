@@ -131,10 +131,13 @@ SynthDef(\hydro4, {
 	hva = hv.collect {|v| (v[2])/(~truemax) };	
 	//hvp.postln;
 	{
-		|freq=1.0,amp=0.0|
+		|freq=1.0,amp=0.0,attack=20,decay=20|
 		//hva.postln;
 		Normalizer.ar(
 			Mix.ar( SinOsc.ar(freq * hvp, mul: hva) ) / n,
+		)!2 * EnvGen.kr(
+			Env.new([0,0.5,0],[attack,decay]),
+			doneAction: 2
 		)!2 * amp
 	}
 };
@@ -148,16 +151,13 @@ SynthDef(\hydro4, {
 
 n=200;
 ~elemsyn = Dictionary.new();
-~playelm = {|elm,amp=0.0,freq=440.0| ~elemsyn[elm] = ~mkelement.(~elem[elm],n:n).play(s,[\amp,amp,\freq,freq]) };
-
-
-~playelm = {|elm,amp=0.0,freq=440.0| ~elemsyn[elm] = ~mkelement.(~elem[elm],n:n).play(s,[\amp,amp,\freq,freq]) };
-
-// args is new
-~playAnElm = {|elm,amp=0.0,freq=440.0,n=50| ~mkelement.(~elem[elm],n:n).play(s,args:[\amp,amp,\freq,freq]) };
-
 
 ~playAnElm = {|elm,fadein=0.2,amp=0.0,freq=440.0,n=50| ~mkelement.(~elem[elm],n:n).play(s,fadeTime:fadein,args:[\amp,amp,\freq,freq]) };
+
+~playelm = {|elm,amp=0.0,freq=440.0,attack=20.0,decay=20.0,n=100| ~mkelement.(~elem[elm],n:n).play(s,args:[\amp,amp,\freq,freq,\attack,attack,\decay,decay]) };
+//~playelm.("H",amp: 0.2, freq: 440)
+~playelm.("H",amp: 0.2, freq: 1440, attack:1.0, decay: 1.0)
+
 
 /*
 x = ~playAnElm.("H",fadein:10,amp:1.0,freq:1440.0,n:150)
@@ -188,6 +188,11 @@ SynthDef(\triramp,{
 }).add;
 
 //Env.new([0,0.5, 0], [1, 2],'linear').test.plot;
+~elmplayer = {
+	|elm="H",attack=20.0,decay=20.0,freq=440.0,n=100,amp=0.1|	
+	~playelm.(elm: elm, amp:amp, freq: freq, attack: attack, decay: decay, n: n)
+};
+//~elmplayer.("H",attack:20.0,decay:20.0,freq:440.0,n:100,amp:0.5)
 ~elmAtkDecay = {
 	|elm="H",attack=20.0,decay=20.0,freq=440.0,n=100|	
 	Routine({
@@ -246,17 +251,18 @@ SynthDef(\triramp,{
 	arg l,attack=20.0,decay=20.0,freq=120.0;
 	var count = 1;
 	l.postln;
-	l.do {|elm|
+	l.collect {|elm|
 		var ffreq = freq * count;
 		count = count + 1;
-		~elmAtkDecay.(elm,
+		// ~elmAtkDecay.(elm,
+		~elmplayer.(elm,
 			attack:attack, 
 			decay:decay,
 			freq: ffreq, n: 50);
 	};
 };
-
-//~caffplay.(["H"],freq:11100)
+~elmplayer.(elm:"H",attack:10,decay:10,freq:1000,n:50)
+//~caffplay.(["H","H","H"],freq:1100,attack:5,decay:5)
 
 //~caffplay.(~caffeine[0],attack:5,decay:5);
 
@@ -394,114 +400,29 @@ SynthDef(\triramp,{
 	s.sendBundle(nil,Synth.basicNew("default",s,synthn).freeMsg)
 };
 
-x = s.defaultGroup
-x[0]
-v = x.dumpTree 
-v
-y = Synth.basicNew("",s, 1281)
-y.release(3)
-~mkslider = {
-	|synth,params,name=""|
-	var window,cv;
-	window = Window(name++synth.asString, Rect(200, 200, 200, 200), false).front;
-	cv = View(window);
-	cv.minSize_(Size(199,199));
-	cv.layout_(VLayout());	
-	params.do {|p|
-		var ss = Slider();//, Rect(50, 50, 50, 10))
-		ss.action_({|slider| synth.set(p[0], [p[1], p[2]].asSpec.map(slider.value))});
-		ss.orientation(\horizontal);
-		cv.layout.add(ss,0,\topleft);
-	};
-};
-
-~longwood.set(\freq,20000)
-~longwood
-
-~mkslider.(~longwood,[[\freq,20,2000],[\amp,0,1.0]], name: "H2O");
 
 
-~elemsyn.keys.do {|elm| ~mkslider.(~elemsyn[elm],[[\freq,20,2000],[\amp,0,1.0]], name: elm)}
-
-~rs = Dictionary.new();
-
-(
-~rs["B"] = Routine({
-	var pbf = Pbrown(0,1,0.05).asStream;
-	var pba = Pbrown(0,1,0.05).asStream;
-	loop {
-		var pbn = 40 + (pbf.next * 1000.0);		
-		~elemsyn["B"].set(\freq,pbn);
-		~elemsyn["B"].set(\amp,pba.next*1.0);
-		pbn.postln;
-		2.0.rand.wait;
-	}
-}).play;
-)
-~rs.keys.do { |key| ~rs[key].stop; }
-~rs["Cfreq"].stop;
-~f.free;
-~ff.stop;
-~elemsyn["Fe"].get(\amp,{|x| x.postln});
-
-
-SynthDef(\cnoise,
-	{
-		|out=0,base=440,range=4,freq=1| 
-		Out.kr(out,LFNoise1.kr(freq,range,base))
-	}
-).add;
-~freqs = Dictionary.new();
-~freqnoise = Dictionary.new();
-~freqit = {|elm|
-	~freqs[elm] = Bus.control(s,1);
-	~freqnoise[elm] = Synth(\cnoise,[\out,~freqs[elm],\freq,1,\range,200,\base,440]);
-	~elemsyn[elm].map(\freq,~freqs[elm])
-};
-
-~freqs["Fe"] = Bus.control(s,1);
-~freqs["Fe"].set(440);
-~freqs["H"] = Bus.control(s,1);
-~freqs["H"].set(440);
-~cnoise = Synth(\cnoise,[\out,~freqs["Fe"]]);
-~cnoiseh = Synth(\cnoise,[\out,~freqs["H"]]);
-s.queryAllNodes();
-~elemsyn["Fe"].map(\freq,~freqs["Fe"])
-~elemsyn["H"].map(\freq,~freqs["H"])
-
-~amps = Dictionary.new();
-~ampnoise = Dictionary.new();
-~ampit = {|elm|
-	~amps[elm] = Bus.control(s,1);
-	~ampnoise[elm] = Synth(\cnoise,[\out,~freqs[elm],\freq,3,\range,1,\base,0]);
-	~elemsyn[elm].map(\amp,~amps[elm])
-};
-~ampit.("C")
-~freqit.("C")
-~free.(1010)
-~free.(1009)
-~free.(1008)
-~freqnoise["C"].set(\base,800)
 
 ~cool = ();
 ~buildWindow = {
         var window, cv, updateBtn, synthids, updateButtons, buttons; 
-        window = Window("", Rect(200, 200, 200, 200), false).front;
+	    var n = 20;
+        window = Window("", Rect(200, 200, 200, 400), false).front;
         cv = View(window);
-        cv.minSize_(Size(199,199));
+        cv.minSize_(Size(199,399));
         cv.layout_(VLayout());	
         updateBtn = {
            |but, string| but.states = [[string.asString, Color.black, Color.red]];
            but.refresh;
         };
-        buttons = 10.collect {|i| 
-			var btn = Button(cv,Rect(50, 50, 50, 10));
+        buttons = n.collect {|i| 
+			var btn = Button(cv,Rect(50, 50, 50, 30));
 			btn.action_( { Synth.basicNew("",s,synthids[i]).release(7.0); } );
 			updateBtn.value(btn,""+i)
 		};
-        synthids = 10.collect { 0 };
+        synthids = n.collect { 0 };
         updateButtons = {
-			10.do {|i| 
+			n.do {|i| 
 				if(i < ~cool.size, {
 					updateBtn.value( buttons[i], ~cool.[i].value);
 					synthids[i] = ~cool.[i].key
@@ -514,7 +435,7 @@ s.queryAllNodes();
 	    updateButtons
 };
 ~updater = ~buildWindow.();
-(
+~querySynths = {
 		var collectChildren, levels, countSize;
 		var resp, done = false;
         var updater, updateFunc;
@@ -591,11 +512,5 @@ s.queryAllNodes();
 			}
 		};
 		updater = updateFunc.value;
-)
-~cool.(1)
-~cool.(1).collect{|x| Synth.basicNew(x.value,s,x.key).release(4); }
-
-~updater.()
-~cool = [(1->"a"),(2->"b"),(3->"c")];
-~cool.[0]
-10.collect {|x| x}
+};
+~querySynths.();
